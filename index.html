@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบสำรวจต้นไม้ - Tree Survey System</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --forest-deep: #0a1f0e;
+  --forest-dark: #122b16;
+  --forest-mid: #1e4620;
+  --forest-light: #2d6a31;
+  --forest-bright: #3d8b40;
+  --canopy: #4caf50;
+  --leaf: #66bb6a;
+  --mint: #a5d6a7;
+  --bark: #5d4037;
+  --bark-light: #8d6e63;
+  --soil: #3e2723;
+  --gold: #f9a825;
+  --amber: #ffb300;
+  --cream: #f5f0e8;
+  --white: #ffffff;
+  --glass: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.12);
+  --shadow: rgba(0,0,0,0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--forest-deep);
+  color: var(--cream);
+  overflow-x: hidden;
+}
+
+/* ===== LOGIN PAGE ===== */
+#login-page {
+  position: fixed; inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--forest-deep);
+  overflow: hidden;
+}
+
+/* Animated Forest Background */
+.forest-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #0a1a0c 0%, #0f2d12 40%, #1a4520 70%, #0d1f0f 100%);
+}
+
+.sky-gradient {
+  position: absolute; top: 0; left: 0; right: 0; height: 45%;
+  background: linear-gradient(180deg, #000d02 0%, #051a08 50%, #0a2e0e 100%);
+}
+
+/* Stars */
+.stars {
+  position: absolute; top: 0; left: 0; right: 0; height: 40%;
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* Moon */
+.moon {
+  position: absolute; top: 30px; right: 80px;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle at 40% 40%, #fff9e0, #f9d77e);
+  border-radius: 50%;
+  box-shadow: 0 0 30px 10px rgba(249,215,126,0.3), 0 0 60px 20px rgba(249,215,126,0.1);
+  animation: moonGlow 4s ease-in-out infinite;
+}
+@keyframes moonGlow {
+  0%, 100% { box-shadow: 0 0 30px 10px rgba(249,215,126,0.3), 0 0 60px 20px rgba(249,215,126,0.1); }
+  50% { box-shadow: 0 0 40px 15px rgba(249,215,126,0.5), 0 0 80px 30px rgba(249,215,126,0.2); }
+}
+
+/* Ground */
+.ground {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
+  background: linear-gradient(180deg, #0d2310 0%, #071508 100%);
+}
+
+/* Trees Layer */
+.trees-layer {
+  position: absolute; bottom: 28%; left: 0; right: 0;
+  height: 55%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 0 20px;
+}
+
+.tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: bottom center;
+}
+
+.tree-crown {
+  position: relative;
+}
+
+.tree-crown::before,
+.tree-crown::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-style: solid;
+  border-color: transparent;
+}
+
+.tree-trunk {
+  background: linear-gradient(180deg, #3e2005, #1a0e00);
+  border-radius: 2px;
+}
+
+/* Fireflies */
+.firefly {
+  position: absolute;
+  width: 3px; height: 3px;
+  background: #c8ff00;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(200,255,0,0.6);
+  animation: fireflyMove var(--dur) ease-in-out infinite var(--delay);
+}
+@keyframes fireflyMove {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translate(var(--tx), var(--ty)); opacity: 0.8; }
+  80% { opacity: 0.3; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+
+/* Mist */
+.mist {
+  position: absolute; bottom: 25%; left: -20%; right: -20%;
+  height: 80px;
+  background: linear-gradient(180deg, transparent, rgba(200,230,200,0.04), transparent);
+  animation: mistMove 8s ease-in-out infinite;
+  filter: blur(8px);
+}
+.mist:nth-child(2) { bottom: 30%; animation-delay: -4s; animation-duration: 12s; }
+@keyframes mistMove {
+  0%, 100% { transform: translateX(0); opacity: 0.5; }
+  50% { transform: translateX(5%); opacity: 1; }
+}
+
+/* Login Card */
+.login-card {
+  position: relative; z-index: 10;
+  background: rgba(10, 25, 12, 0.85);
+  border: 1px solid rgba(77,175,74,0.3);
+  border-radius: 20px;
+  padding: 40px;
+  width: 420px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.login-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-logo .icon {
+  font-size: 50px;
+  display: block;
+  margin-bottom: 8px;
+  animation: sway 3s ease-in-out infinite;
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+.login-logo h1 {
+  font-family: 'Prompt', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--leaf);
+  letter-spacing: 0.5px;
+}
+
+.login-logo p {
+  font-size: 13px;
+  color: rgba(165,214,167,0.6);
+  margin-top: 4px;
+}
+
+.tab-row {
+  display: flex;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.3);
+  padding: 4px;
+  margin-bottom: 24px;
+  gap: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  background: transparent;
+  color: rgba(165,214,167,0.5);
+}
+
+.tab-btn.active {
+  background: var(--forest-light);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: var(--mint);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(77,175,74,0.25);
+  border-radius: 10px;
+  color: var(--cream);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  transition: all 0.3s;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--canopy);
+  background: rgba(0,0,0,0.5);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
+}
+
+.form-group input::placeholder { color: rgba(165,214,167,0.3); }
+
+.btn-login {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--forest-light), var(--canopy));
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(76,175,80,0.3);
+  margin-top: 8px;
+}
+
+.btn-login:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(76,175,80,0.4);
+}
+
+.alert-msg {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 14px;
+  display: none;
+}
+.alert-msg.error { background: rgba(244,67,54,0.15); border: 1px solid rgba(244,67,54,0.3); color: #ef9a9a; display: block; }
+.alert-msg.success { background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.3); color: #a5d6a7; display: block; }
+.alert-msg.info { background: rgba(33,150,243,0.15); border: 1px solid rgba(33,150,243,0.3); color: #90caf9; display: block; }
+
+/* ===== MAIN APP ===== */
+#main-app { display: none; }
+
+/* Navbar */
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(10,20,12,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(76,175,80,0.2);
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Prompt', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--leaf);
+}
+
+.nav-brand span { font-size: 24px; }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--mint);
+}
+
+.user-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-admin { background: rgba(249,168,37,0.2); color: var(--gold); border: 1px solid rgba(249,168,37,0.3); }
+.badge-user { background: rgba(76,175,80,0.2); color: var(--leaf); border: 1px solid rgba(76,175,80,0.3); }
+
+.btn-sm {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(76,175,80,0.3);
+  background: transparent;
+  color: var(--mint);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Sarabun', sans-serif;
+}
+.btn-sm:hover { background: rgba(76,175,80,0.15); }
+
+/* Admin Panel Button */
+.btn-admin {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(249,168,37,0.3);
+  background: transparent;
+  color: var(--gold);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Sarabun', sans-serif;
+}
+.btn-admin:hover { background: rgba(249,168,37,0.1); }
+
+/* Sections */
+.section {
+  padding-top: 60px;
+}
+
+/* Map Section */
+#map-section {
+  position: relative;
+  height: 100vh;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map Controls */
+.map-controls {
+  position: absolute;
+  top: 80px; left: 20px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.map-info-panel {
+  background: rgba(10,20,12,0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(76,175,80,0.3);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 220px;
+  font-size: 13px;
+}
+
+.map-info-panel h3 {
+  font-family: 'Prompt', sans-serif;
+  color: var(--leaf);
+  font-size: 14px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tree-count-badge {
+  background: linear-gradient(135deg, var(--forest-light), var(--canopy));
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-add-tree {
+  width: 100%;
+  padding: 10px;
+  background: linear-gradient(135deg, var(--forest-light), var(--canopy));
+  border: none;
+  border-radius: 9px;
+  color: white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 3px 10px rgba(76,175,80,0.3);
+}
+.btn-add-tree:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(76,175,80,0.4); }
+.btn-add-tree:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Watermark */
+.watermark {
+  position: absolute;
+  bottom: 10px; right: 10px;
+  z-index: 400;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3);
+  padding: 4px 8px;
+  border-radius: 6px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  z-index: 5000;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  display: none;
+}
+
+.modal {
+  background: var(--forest-dark);
+  border: 1px solid rgba(76,175,80,0.3);
+  border-radius: 16px;
+  padding: 28px;
+  width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.modal h3 {
+  font-family: 'Prompt', sans-serif;
+  color: var(--leaf);
+  font-size: 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.modal-grid .full-width { grid-column: 1 / -1; }
+
+.form-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--mint);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.form-field input, .form-field select {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(76,175,80,0.2);
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.form-field input:focus, .form-field select:focus {
+  border-color: var(--canopy);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+}
+
+.form-field select option { background: var(--forest-dark); }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.btn-save {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, var(--forest-light), var(--canopy));
+  color: white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(76,175,80,0.3);
+}
+
+.location-hint {
+  background: rgba(76,175,80,0.1);
+  border: 1px solid rgba(76,175,80,0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--mint);
+  margin-bottom: 16px;
+}
+
+/* ===== TABLE SECTION ===== */
+#table-section {
+  padding: 60px 40px 40px;
+  background: linear-gradient(180deg, var(--forest-deep), var(--forest-dark));
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-family: 'Prompt', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--leaf);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: rgba(165,214,167,0.5);
+  margin-top: 2px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-input {
+  padding: 9px 16px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(76,175,80,0.2);
+  border-radius: 9px;
+  color: var(--cream);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  outline: none;
+  width: 240px;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--canopy);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(76,175,80,0.15);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead tr {
+  background: rgba(45,106,49,0.5);
+  border-bottom: 1px solid rgba(76,175,80,0.2);
+}
+
+thead th {
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--mint);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(76,175,80,0.07);
+  transition: background 0.2s;
+}
+
+tbody tr:hover { background: rgba(76,175,80,0.07); }
+
+tbody tr:last-child { border-bottom: none; }
+
+tbody td {
+  padding: 12px 16px;
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.carbon-cell {
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.species-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  background: rgba(76,175,80,0.15);
+  color: var(--leaf);
+  border: 1px solid rgba(76,175,80,0.2);
+  display: inline-block;
+}
+
+.action-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  transition: all 0.2s;
+  margin-right: 4px;
+}
+
+.action-btn:hover { background: rgba(76,175,80,0.15); color: var(--leaf); border-color: rgba(76,175,80,0.3); }
+.action-btn.delete:hover { background: rgba(244,67,54,0.15); color: #ef9a9a; border-color: rgba(244,67,54,0.3); }
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  color: rgba(165,214,167,0.3);
+}
+
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 15px; }
+
+/* ===== DASHBOARD SECTION ===== */
+#dashboard-section {
+  padding: 60px 40px;
+  background: var(--forest-dark);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(76,175,80,0.15);
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--forest-light), var(--canopy));
+}
+
+.stat-label {
+  font-size: 12px;
+  color: rgba(165,214,167,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-family: 'Prompt', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--leaf);
+}
+
+.stat-unit {
+  font-size: 12px;
+  color: rgba(165,214,167,0.5);
+  margin-top: 2px;
+}
+
+.stat-icon {
+  position: absolute;
+  top: 16px; right: 16px;
+  font-size: 28px;
+  opacity: 0.3;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.chart-card {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(76,175,80,0.15);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.chart-card h4 {
+  font-family: 'Prompt', sans-serif;
+  color: var(--leaf);
+  font-size: 15px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 280px;
+}
+
+/* Admin Panel */
+#admin-modal {
+  max-width: 600px;
+  width: 95%;
+}
+
+.pending-list { }
+
+.pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(76,175,80,0.15);
+  border-radius: 9px;
+  margin-bottom: 8px;
+}
+
+.pending-info { font-size: 13px; color: var(--cream); }
+.pending-email { font-size: 11px; color: rgba(165,214,167,0.5); margin-top: 2px; }
+
+.btn-approve {
+  padding: 5px 14px;
+  background: rgba(76,175,80,0.2);
+  border: 1px solid rgba(76,175,80,0.35);
+  color: var(--leaf);
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  margin-left: 6px;
+}
+.btn-reject {
+  padding: 5px 14px;
+  background: rgba(244,67,54,0.1);
+  border: 1px solid rgba(244,67,54,0.25);
+  color: #ef9a9a;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  margin-left: 6px;
+}
+
+/* Popup on map */
+.tree-popup {
+  font-family: 'Sarabun', sans-serif;
+  min-width: 200px;
+  color: #1a1a1a;
+}
+.tree-popup h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--forest-mid);
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(76,175,80,0.3);
+  padding-bottom: 6px;
+}
+.tree-popup p { font-size: 13px; margin-bottom: 4px; }
+.tree-popup strong { color: var(--forest-mid); }
+.tree-popup .carbon-val {
+  background: rgba(249,168,37,0.1);
+  border: 1px solid rgba(249,168,37,0.3);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 13px;
+  color: #b8860b;
+  margin-top: 6px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* Scroll indicator */
+.scroll-down {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(165,214,167,0.6);
+  font-size: 12px;
+  animation: bounce 2s ease-in-out infinite;
+  cursor: pointer;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* Divider */
+.section-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(76,175,80,0.3), transparent);
+  margin: 0 40px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+::-webkit-scrollbar-thumb { background: rgba(76,175,80,0.3); border-radius: 3px; }
+
+/* Pending approval notice */
+.pending-notice {
+  background: rgba(33,150,243,0.1);
+  border: 1px solid rgba(33,150,243,0.25);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  color: #90caf9;
+  font-size: 14px;
+}
+
+/* Map loading */
+#map-placeholder {
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #0a1a0c, #0f2d12);
+  flex-direction: column;
+  gap: 12px;
+  color: var(--mint);
+  font-size: 15px;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid rgba(76,175,80,0.2);
+  border-top-color: var(--canopy);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 30px; right: 30px;
+  z-index: 9999;
+  background: rgba(10,20,12,0.95);
+  border: 1px solid rgba(76,175,80,0.35);
+  border-radius: 10px;
+  padding: 12px 20px;
+  color: var(--leaf);
+  font-size: 14px;
+  backdrop-filter: blur(10px);
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  #table-section, #dashboard-section { padding: 40px 16px; }
+  .modal { width: 95%; padding: 20px; }
+  .modal-grid { grid-template-columns: 1fr; }
+  .login-card { width: 90%; padding: 28px 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="login-page">
+  <div class="forest-bg">
+    <div class="sky-gradient"></div>
+    <div class="stars" id="stars-container"></div>
+    <div class="moon"></div>
+    <div class="trees-layer" id="trees-layer"></div>
+    <div class="mist"></div>
+    <div class="mist"></div>
+    <div class="ground"></div>
+    <div id="fireflies-container"></div>
+  </div>
+
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="icon">🌳</span>
+      <h1>ระบบสำรวจต้นไม้</h1>
+      <p>Tree Survey & Carbon Management System</p>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="showTab('login')">เข้าสู่ระบบ</button>
+      <button class="tab-btn" onclick="showTab('register')">สมัครสมาชิก</button>
+    </div>
+
+    <div id="login-alert" class="alert-msg"></div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>ชื่อผู้ใช้</label>
+        <input type="text" id="login-username" placeholder="กรอกชื่อผู้ใช้">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="login-password" placeholder="กรอกรหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn-login" onclick="doLogin()">🔐 เข้าสู่ระบบ</button>
+    </div>
+
+    <!-- Register Form -->
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label>ชื่อ-นามสกุล</label>
+        <input type="text" id="reg-name" placeholder="กรอกชื่อ-นามสกุล">
+      </div>
+      <div class="form-group">
+        <label>อีเมล</label>
+        <input type="email" id="reg-email" placeholder="กรอกอีเมล">
+      </div>
+      <div class="form-group">
+        <label>ชื่อผู้ใช้</label>
+        <input type="text" id="reg-username" placeholder="กรอกชื่อผู้ใช้">
+      </div>
+      <div class="form-group">
+        <label>รหัสผ่าน</label>
+        <input type="password" id="reg-password" placeholder="กรอกรหัสผ่าน">
+      </div>
+      <button class="btn-login" onclick="doRegister()">📝 ส่งคำขอสมัคร</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="main-app">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span>🌳</span>
+      ระบบสำรวจต้นไม้
+    </div>
+    <div class="nav-right">
+      <div class="nav-user">
+        <span id="nav-username">ผู้ใช้</span>
+        <span class="user-badge" id="nav-role-badge">user</span>
+      </div>
+      <button class="btn-admin" id="admin-btn" onclick="openAdminPanel()" style="display:none">⚙️ จัดการสมาชิก</button>
+      <button class="btn-sm" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </nav>
+
+  <!-- Map Section -->
+  <div id="map-section" class="section">
+    <div id="map">
+      <div id="map-placeholder">
+        <div class="spinner"></div>
+        <span>กำลังโหลดแผนที่...</span>
+      </div>
+    </div>
+
+    <!-- Map Controls -->
+    <div class="map-controls">
+      <div class="map-info-panel">
+        <h3>🌿 ต้นไม้ในระบบ <span class="tree-count-badge" id="tree-count">0</span></h3>
+        <p style="font-size:12px; color:rgba(165,214,167,0.5); margin-bottom:12px;">คลิกบนแผนที่เพื่อเพิ่มต้นไม้</p>
+        <button class="btn-add-tree" id="btn-add-mode" onclick="toggleAddMode()">
+          📍 เปิดโหมดเพิ่มต้นไม้
+        </button>
+        <div id="add-mode-hint" style="display:none; margin-top:10px; font-size:12px; color: #a5d6a7; background: rgba(76,175,80,0.1); padding:8px; border-radius:7px; text-align:center;">
+          🎯 คลิกบนแผนที่เพื่อปักหมุด
+        </div>
+      </div>
+    </div>
+
+    <div class="watermark">ผู้จัดทำ - นายจีระภัทร จุกสีดา</div>
+
+    <div class="scroll-down" onclick="document.getElementById('table-section').scrollIntoView({behavior:'smooth'})">
+      <span>เลื่อนดูข้อมูล</span>
+      <span>▼</span>
+    </div>
+  </div>
+
+  <!-- Table Section -->
+  <div class="section-divider"></div>
+  <div id="table-section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">📊 ตารางข้อมูลต้นไม้</div>
+        <div class="section-subtitle">รายการต้นไม้ทั้งหมดพร้อมปริมาณคาร์บอน</div>
+      </div>
+      <div class="search-bar">
+        <input class="search-input" placeholder="🔍 ค้นหาต้นไม้..." id="search-input" oninput="renderTable()">
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ลำดับ</th>
+            <th>พรรณไม้</th>
+            <th>ชื่อต้นไม้</th>
+            <th>ความสูง (ม.)</th>
+            <th>เส้นรอบวง (ซม.)</th>
+            <th>DBH (ซม.)</th>
+            <th>คาร์บอน/ปี (กก.)</th>
+            <th>พิกัด</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="tree-table-body">
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">
+                <div class="icon">🌱</div>
+                <p>ยังไม่มีข้อมูลต้นไม้ — เริ่มต้นโดยเพิ่มต้นไม้บนแผนที่</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div class="section-divider"></div>
+  <div id="dashboard-section">
+    <div class="section-title" style="margin-bottom:24px;">📈 แดชบอร์ดภาพรวม</div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon">🌳</div>
+        <div class="stat-label">จำนวนต้นไม้</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-unit">ต้น</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🌿</div>
+        <div class="stat-label">ชนิดพรรณไม้</div>
+        <div class="stat-value" id="stat-species">0</div>
+        <div class="stat-unit">ชนิด</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-label">คาร์บอนรวม/ปี</div>
+        <div class="stat-value" id="stat-carbon">0</div>
+        <div class="stat-unit">กิโลกรัม CO₂</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📏</div>
+        <div class="stat-label">ความสูงเฉลี่ย</div>
+        <div class="stat-value" id="stat-avgheight">0</div>
+        <div class="stat-unit">เมตร</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h4>🌲 สัดส่วนชนิดต้นไม้ (กราฟแท่ง)</h4>
+        <div class="chart-canvas-wrap">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h4>🍃 คาร์บอนแยกตามชนิดต้นไม้ (กราฟวงกลม)</h4>
+        <div class="chart-canvas-wrap">
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Add Tree Modal -->
+<div class="modal-overlay" id="add-tree-modal">
+  <div class="modal">
+    <h3>🌳 เพิ่มข้อมูลต้นไม้</h3>
+    <div class="location-hint" id="location-hint">
+      📍 พิกัด: <span id="selected-coords">กรุณาคลิกบนแผนที่</span>
+    </div>
+    <div class="modal-grid">
+      <div class="form-field">
+        <label>ลำดับต้นไม้ *</label>
+        <input type="number" id="tree-no" placeholder="เช่น 1, 2, 3..." min="1">
+      </div>
+      <div class="form-field">
+        <label>ชนิดพรรณไม้ *</label>
+        <input type="text" id="tree-species" placeholder="เช่น ยางนา, สัก" list="species-list">
+        <datalist id="species-list">
+          <option value="ไม้ยืนต้น">
+          <option value="ไม้ผล">
+          <option value="ไม้ป่า">
+          <option value="ไม้ประดับ">
+          <option value="ไม้ริมทาง">
+        </datalist>
+      </div>
+      <div class="form-field full-width">
+        <label>ชื่อต้นไม้ *</label>
+        <input type="text" id="tree-name" placeholder="เช่น ยางนา, ประดู่, มะม่วง">
+      </div>
+      <div class="form-field">
+        <label>ความสูง (เมตร) *</label>
+        <input type="number" id="tree-height" placeholder="เช่น 10.5" step="0.1" min="0">
+      </div>
+      <div class="form-field">
+        <label>เส้นรอบวง (เซนติเมตร) *</label>
+        <input type="number" id="tree-circ" placeholder="เช่น 120" step="0.1" min="0">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddModal()">ยกเลิก</button>
+      <button class="btn-save" onclick="saveTree()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Panel Modal -->
+<div class="modal-overlay" id="admin-modal-overlay">
+  <div class="modal" id="admin-modal">
+    <h3>⚙️ จัดการสมาชิก</h3>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; color:var(--mint); margin-bottom:12px; font-weight:600;">⏳ รอการอนุมัติ</div>
+      <div id="pending-list">
+        <p style="font-size:13px; color:rgba(165,214,167,0.4); text-align:center; padding:20px;">ไม่มีคำขอสมัคร</p>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px; color:var(--mint); margin-bottom:12px; font-weight:600;">✅ สมาชิกที่อนุมัติแล้ว</div>
+      <div id="approved-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="document.getElementById('admin-modal-overlay').style.display='none'">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- View/Edit Modal -->
+<div class="modal-overlay" id="view-tree-modal">
+  <div class="modal">
+    <h3>✏️ แก้ไขข้อมูลต้นไม้</h3>
+    <input type="hidden" id="edit-tree-id">
+    <div class="modal-grid">
+      <div class="form-field">
+        <label>ลำดับต้นไม้</label>
+        <input type="number" id="edit-tree-no" min="1">
+      </div>
+      <div class="form-field">
+        <label>ชนิดพรรณไม้</label>
+        <input type="text" id="edit-tree-species">
+      </div>
+      <div class="form-field full-width">
+        <label>ชื่อต้นไม้</label>
+        <input type="text" id="edit-tree-name">
+      </div>
+      <div class="form-field">
+        <label>ความสูง (ม.)</label>
+        <input type="number" id="edit-tree-height" step="0.1">
+      </div>
+      <div class="form-field">
+        <label>เส้นรอบวง (ซม.)</label>
+        <input type="number" id="edit-tree-circ" step="0.1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="document.getElementById('view-tree-modal').style.display='none'">ยกเลิก</button>
+      <button class="btn-save" onclick="saveEditTree()">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">✅ บันทึกสำเร็จ</div>
+
+<!-- Leaflet for map -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ===== DATA STORE =====
+let trees = [];
+let users = [];
+let pendingUsers = [];
+let currentUser = null;
+let map = null;
+let markers = {};
+let addMode = false;
+let tempMarker = null;
+let tempLatLng = null;
+let barChart = null, pieChart = null;
+
+// ===== PERSISTENT STORAGE (Online - shared across all users/devices) =====
+async function dbGet(key) {
+  try {
+    const r = await window.storage.get(key, true);
+    return r ? JSON.parse(r.value) : null;
+  } catch(e) { return null; }
+}
+async function dbSet(key, val) {
+  try { await window.storage.set(key, JSON.stringify(val), true); } catch(e) {}
+}
+
+async function loadAllData() {
+  const [t, u, p] = await Promise.all([
+    dbGet('treeData'),
+    dbGet('treeUsers'),
+    dbGet('treePending')
+  ]);
+  trees = t || [];
+  users = u || [];
+  pendingUsers = p || [];
+
+  // Ensure admin exists
+  if (!users.find(u => u.username === 'andrew888')) {
+    users.push({ username: 'andrew888', password: '1234', role: 'admin', name: 'Admin Andrew', email: 'admin@system.com' });
+    await dbSet('treeUsers', users);
+  }
+}
+
+// Boot: load data then show login
+loadAllData().then(() => {
+  document.getElementById('login-page').style.opacity = '1';
+});
+
+// ===== ANIMATED FOREST =====
+function initForestAnimation() {
+  // Stars
+  const starsContainer = document.getElementById('stars-container');
+  for (let i = 0; i < 120; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    star.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%;
+      top:${Math.random()*100}%;
+      --dur:${2+Math.random()*4}s;
+      --delay:-${Math.random()*5}s;
+    `;
+    starsContainer.appendChild(star);
+  }
+
+  // Trees
+  const treesLayer = document.getElementById('trees-layer');
+  const treeData = [
+    { h: 220, cw: 80, ch: 160, dark: '#0a2010', mid: '#112d15', trunk: 10, tw: 28 },
+    { h: 160, cw: 60, ch: 110, dark: '#0e2813', mid: '#162e18', trunk: 8, tw: 20 },
+    { h: 280, cw: 100, ch: 200, dark: '#091e0d', mid: '#0f2812', trunk: 13, tw: 35 },
+    { h: 130, cw: 50, ch: 90, dark: '#0d2511', mid: '#142c16', trunk: 7, tw: 16 },
+    { h: 240, cw: 85, ch: 170, dark: '#0b2210', mid: '#112a14', trunk: 11, tw: 30 },
+    { h: 170, cw: 65, ch: 120, dark: '#0c2412', mid: '#132b16', trunk: 9, tw: 22 },
+    { h: 300, cw: 110, ch: 220, dark: '#081c0c', mid: '#0e2611', trunk: 14, tw: 38 },
+    { h: 150, cw: 55, ch: 100, dark: '#0d2511', mid: '#142d15', trunk: 7, tw: 18 },
+    { h: 200, cw: 75, ch: 145, dark: '#0a2010', mid: '#112b14', trunk: 10, tw: 26 },
+    { h: 260, cw: 95, ch: 185, dark: '#091e0d', mid: '#0f2712', trunk: 12, tw: 32 },
+    { h: 180, cw: 68, ch: 128, dark: '#0c2312', mid: '#132b15', trunk: 9, tw: 23 },
+    { h: 320, cw: 115, ch: 230, dark: '#07190b', mid: '#0d2510', trunk: 15, tw: 40 },
+  ];
+
+  treeData.forEach((t, i) => {
+    const tree = document.createElement('div');
+    tree.className = 'tree';
+    tree.style.cssText = `animation: sway ${3+Math.random()*3}s ease-in-out infinite; animation-delay: -${Math.random()*5}s;`;
+    tree.innerHTML = `
+      <div class="tree-crown" style="
+        width:${t.cw}px; height:${t.ch}px;
+        background: radial-gradient(ellipse at 50% 60%, ${t.mid}, ${t.dark});
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        position:relative;
+      ">
+        <div style="
+          position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+          width:${t.cw*0.8}px; height:${t.ch*0.7}px;
+          background: radial-gradient(ellipse at 50% 60%, ${t.mid}cc, ${t.dark}cc);
+          clip-path: polygon(50% 10%, 0% 100%, 100% 100%);
+        "></div>
+        <div style="
+          position:absolute; bottom:${t.ch*0.25}px; left:50%; transform:translateX(-50%);
+          width:${t.cw*0.65}px; height:${t.ch*0.55}px;
+          background: radial-gradient(ellipse, #1a4520, #0a2010);
+          clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        "></div>
+      </div>
+      <div class="tree-trunk" style="width:${t.tw}px; height:${t.h-t.ch}px;"></div>
+    `;
+    treesLayer.appendChild(tree);
+  });
+
+  // Fireflies
+  const ff = document.getElementById('fireflies-container');
+  for (let i = 0; i < 25; i++) {
+    const f = document.createElement('div');
+    f.className = 'firefly';
+    const tx = (Math.random()-0.5)*150;
+    const ty = (Math.random()-0.5)*150;
+    f.style.cssText = `
+      left:${10+Math.random()*80}%;
+      top:${40+Math.random()*40}%;
+      --dur:${4+Math.random()*8}s;
+      --delay:-${Math.random()*10}s;
+      --tx:${tx}px;
+      --ty:${ty}px;
+    `;
+    ff.appendChild(f);
+  }
+}
+
+// ===== AUTH =====
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('login-form').style.display = tab==='login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? 'block' : 'none';
+  clearAlert();
+}
+
+function showAlert(msg, type='error') {
+  const el = document.getElementById('login-alert');
+  el.textContent = msg;
+  el.className = 'alert-msg ' + type;
+}
+
+function clearAlert() {
+  const el = document.getElementById('login-alert');
+  el.className = 'alert-msg';
+  el.textContent = '';
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!username || !password) return showAlert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+  
+  // Reload latest user list before login
+  const latest = await dbGet('treeUsers');
+  if (latest) users = latest;
+
+  const user = users.find(u => u.username === username && u.password === password);
+  if (!user) return showAlert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+  
+  currentUser = user;
+  enterApp();
+}
+
+async function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const username = document.getElementById('reg-username').value.trim();
+  const password = document.getElementById('reg-password').value;
+
+  if (!name || !email || !username || !password) return showAlert('กรุณากรอกข้อมูลให้ครบ');
+
+  // Reload fresh data before checking
+  const [latestUsers, latestPending] = await Promise.all([dbGet('treeUsers'), dbGet('treePending')]);
+  if (latestUsers) users = latestUsers;
+  if (latestPending) pendingUsers = latestPending;
+
+  if (users.find(u => u.username === username) || pendingUsers.find(u => u.username === username)) return showAlert('ชื่อผู้ใช้นี้มีอยู่แล้ว');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showAlert('รูปแบบอีเมลไม่ถูกต้อง');
+
+  pendingUsers.push({ name, email, username, password, role: 'user', createdAt: new Date().toISOString() });
+  await dbSet('treePending', pendingUsers);
+  showAlert('ส่งคำขอสมัครเรียบร้อยแล้ว กรุณารอผู้ดูแลระบบอนุมัติ', 'success');
+  document.getElementById('reg-name').value = '';
+  document.getElementById('reg-email').value = '';
+  document.getElementById('reg-username').value = '';
+  document.getElementById('reg-password').value = '';
+}
+
+function enterApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('nav-username').textContent = currentUser.name || currentUser.username;
+  const badge = document.getElementById('nav-role-badge');
+  badge.textContent = currentUser.role === 'admin' ? 'แอดมิน' : 'ผู้ใช้';
+  badge.className = 'user-badge ' + (currentUser.role === 'admin' ? 'badge-admin' : 'badge-user');
+  
+  if (currentUser.role === 'admin') document.getElementById('admin-btn').style.display = 'inline-block';
+  
+  initMap();
+}
+
+function doLogout() {
+  currentUser = null;
+  addMode = false;
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  clearAlert();
+  if (map) { map.remove(); map = null; markers = {}; }
+}
+
+// ===== MAP =====
+function initMap() {
+  setTimeout(() => {
+    const lat = 12.720410287243135;
+    const lng = 101.18208378666674;
+
+    map = L.map('map', { zoomControl: true }).setView([lat, lng], 18);
+
+    // Google Satellite (Earth) tiles
+    const googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+      subdomains: ['mt0','mt1','mt2','mt3'],
+      attribution: '&copy; Google Maps',
+      maxZoom: 22,
+      maxNativeZoom: 21
+    }).addTo(map);
+
+    // Google Hybrid labels overlay (street names + boundaries on satellite)
+    const googleLabels = L.tileLayer('https://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+      subdomains: ['mt0','mt1','mt2','mt3'],
+      maxZoom: 22,
+      maxNativeZoom: 21,
+      opacity: 0.85
+    }).addTo(map);
+
+    // Layer control
+    const baseMaps = {
+      '🛰️ ดาวเทียม (Google Earth)': googleSat,
+    };
+    const overlays = {
+      '🗺️ ชื่อถนน / ป้ายชื่อ': googleLabels
+    };
+    L.control.layers(baseMaps, overlays, { position: 'topright', collapsed: false }).addTo(map);
+
+    document.getElementById('map-placeholder').style.display = 'none';
+
+    map.on('click', onMapClick);
+
+    // Load existing trees
+    trees.forEach(tree => addMarkerToMap(tree));
+    updateTreeCount();
+    renderTable();
+    renderDashboard();
+  }, 500);
+}
+
+function onMapClick(e) {
+  if (!addMode) return;
+  if (currentUser.role !== 'admin' && currentUser.role !== 'user') return;
+
+  tempLatLng = e.latlng;
+  document.getElementById('selected-coords').textContent = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+
+  if (tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.marker(e.latlng, { icon: L.divIcon({
+    className: '',
+    html: '<div style="font-size:28px;transform:translate(-50%,-100%)">📍</div>',
+    iconSize: [30, 30]
+  })}).addTo(map);
+
+  document.getElementById('add-tree-modal').style.display = 'flex';
+  // Auto-fill tree no
+  const maxNo = trees.length > 0 ? Math.max(...trees.map(t => t.no || 0)) : 0;
+  document.getElementById('tree-no').value = maxNo + 1;
+}
+
+function toggleAddMode() {
+  addMode = !addMode;
+  const btn = document.getElementById('btn-add-mode');
+  const hint = document.getElementById('add-mode-hint');
+  if (addMode) {
+    btn.textContent = '✖️ ปิดโหมดเพิ่มต้นไม้';
+    btn.style.background = 'linear-gradient(135deg, #c62828, #e53935)';
+    hint.style.display = 'block';
+    map.getContainer().style.cursor = 'crosshair';
+  } else {
+    btn.textContent = '📍 เปิดโหมดเพิ่มต้นไม้';
+    btn.style.background = 'linear-gradient(135deg, var(--forest-light), var(--canopy))';
+    hint.style.display = 'none';
+    map.getContainer().style.cursor = '';
+    if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+  }
+}
+
+function closeAddModal() {
+  document.getElementById('add-tree-modal').style.display = 'none';
+  if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+}
+
+async function saveTree() {
+  const no = parseInt(document.getElementById('tree-no').value);
+  const species = document.getElementById('tree-species').value.trim();
+  const name = document.getElementById('tree-name').value.trim();
+  const height = parseFloat(document.getElementById('tree-height').value);
+  const circ = parseFloat(document.getElementById('tree-circ').value);
+
+  if (!no || !species || !name || isNaN(height) || isNaN(circ)) {
+    showToast('⚠️ กรุณากรอกข้อมูลให้ครบ', false); return;
+  }
+  if (!tempLatLng) { showToast('⚠️ กรุณาคลิกบนแผนที่ก่อน', false); return; }
+
+  const dbh = (circ / Math.PI).toFixed(1);
+  const carbon = calcCarbon(height, circ);
+
+  const tree = {
+    id: Date.now().toString(),
+    no, species, name,
+    height, circ,
+    dbh: parseFloat(dbh),
+    carbon,
+    lat: tempLatLng.lat,
+    lng: tempLatLng.lng,
+    addedBy: currentUser.username,
+    createdAt: new Date().toISOString()
+  };
+
+  trees.push(tree);
+  await dbSet('treeData', trees);
+  addMarkerToMap(tree);
+  updateTreeCount();
+  renderTable();
+  renderDashboard();
+
+  // Clear form
+  ['tree-no','tree-species','tree-name','tree-height','tree-circ'].forEach(id => document.getElementById(id).value = '');
+  tempLatLng = null;
+  if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+  document.getElementById('add-tree-modal').style.display = 'none';
+  showToast('✅ เพิ่มต้นไม้เรียบร้อยแล้ว', true);
+}
+
+function calcCarbon(heightM, circCm) {
+  // Using allometric equation approximation
+  // DBH in cm, height in m
+  // Biomass (kg) = 0.0509 * DBH^2 * height (simplified Brown 1997)
+  // Carbon ≈ 0.47 * Biomass
+  // Annual carbon sequestration ≈ 5% of biomass
+  const dbh = circCm / Math.PI;
+  const biomass = 0.0509 * Math.pow(dbh, 2) * heightM;
+  const carbonPerYear = 0.47 * biomass * 0.05 * 3.67; // CO2 equivalent
+  return Math.round(carbonPerYear * 100) / 100;
+}
+
+function createTreeIcon(no) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      background: linear-gradient(135deg, #2d6a31, #4caf50);
+      color: white;
+      border: 2px solid #a5d6a7;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg) translate(-50%, -100%);
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+      font-family: 'Sarabun', sans-serif;
+    ">
+      <span style="transform:rotate(45deg)">${no}</span>
+    </div>`,
+    iconSize: [32, 42],
+    iconAnchor: [0, 42]
+  });
+}
+
+function addMarkerToMap(tree) {
+  const marker = L.marker([tree.lat, tree.lng], { icon: createTreeIcon(tree.no) }).addTo(map);
+  marker.bindPopup(`
+    <div class="tree-popup">
+      <h4>🌳 ต้นที่ ${tree.no} — ${tree.name}</h4>
+      <p><strong>พรรณไม้:</strong> ${tree.species}</p>
+      <p><strong>ความสูง:</strong> ${tree.height} ม.</p>
+      <p><strong>เส้นรอบวง:</strong> ${tree.circ} ซม.</p>
+      <p><strong>DBH:</strong> ${tree.dbh} ซม.</p>
+      <div class="carbon-val">🌿 คาร์บอน: ${tree.carbon} กก.CO₂/ปี</div>
+    </div>
+  `);
+  markers[tree.id] = marker;
+}
+
+function removeTreeMarker(id) {
+  if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+}
+
+function updateTreeCount() {
+  document.getElementById('tree-count').textContent = trees.length;
+}
+
+// ===== TABLE =====
+function renderTable() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+  const filtered = trees.filter(t => {
+    if (!q) return true;
+    return (
+      t.name.toLowerCase().includes(q) ||
+      t.species.toLowerCase().includes(q) ||
+      t.no.toString().includes(q) ||
+      t.height.toString().includes(q) ||
+      t.circ.toString().includes(q) ||
+      t.dbh.toString().includes(q) ||
+      t.carbon.toString().includes(q) ||
+      (t.lat.toFixed(5) + ', ' + t.lng.toFixed(5)).includes(q) ||
+      (t.addedBy || '').toLowerCase().includes(q)
+    );
+  });
+
+  const tbody = document.getElementById('tree-table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="icon">${trees.length ? '🔍' : '🌱'}</div><p>${trees.length ? 'ไม่พบต้นไม้ที่ค้นหา' : 'ยังไม่มีข้อมูลต้นไม้ — เริ่มต้นโดยเพิ่มต้นไม้บนแผนที่'}</p></div></td></tr>`;
+    return;
+  }
+
+  const canEdit = currentUser?.role === 'admin';
+
+  tbody.innerHTML = filtered.sort((a,b) => a.no - b.no).map(t => `
+    <tr>
+      <td><strong>${t.no}</strong></td>
+      <td><span class="species-badge">${t.species}</span></td>
+      <td>${t.name}</td>
+      <td>${t.height}</td>
+      <td>${t.circ}</td>
+      <td>${t.dbh}</td>
+      <td class="carbon-cell">${t.carbon} กก./ปี</td>
+      <td style="font-size:11px; color:rgba(165,214,167,0.5)">${t.lat.toFixed(5)}, ${t.lng.toFixed(5)}</td>
+      <td>
+        <button class="action-btn" onclick="locateTree('${t.id}')">📍</button>
+        ${canEdit ? `<button class="action-btn" onclick="editTree('${t.id}')">✏️</button>` : ''}
+        ${canEdit ? `<button class="action-btn delete" onclick="deleteTree('${t.id}')">🗑️</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function locateTree(id) {
+  const tree = trees.find(t => t.id === id);
+  if (!tree || !map) return;
+  map.setView([tree.lat, tree.lng], 19);
+  if (markers[id]) markers[id].openPopup();
+  document.getElementById('map-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+function editTree(id) {
+  const tree = trees.find(t => t.id === id);
+  if (!tree) return;
+  document.getElementById('edit-tree-id').value = id;
+  document.getElementById('edit-tree-no').value = tree.no;
+  document.getElementById('edit-tree-species').value = tree.species;
+  document.getElementById('edit-tree-name').value = tree.name;
+  document.getElementById('edit-tree-height').value = tree.height;
+  document.getElementById('edit-tree-circ').value = tree.circ;
+  document.getElementById('view-tree-modal').style.display = 'flex';
+}
+
+async function saveEditTree() {
+  const id = document.getElementById('edit-tree-id').value;
+  const idx = trees.findIndex(t => t.id === id);
+  if (idx === -1) return;
+
+  const no = parseInt(document.getElementById('edit-tree-no').value);
+  const height = parseFloat(document.getElementById('edit-tree-height').value);
+  const circ = parseFloat(document.getElementById('edit-tree-circ').value);
+
+  trees[idx] = {
+    ...trees[idx],
+    no,
+    species: document.getElementById('edit-tree-species').value.trim(),
+    name: document.getElementById('edit-tree-name').value.trim(),
+    height, circ,
+    dbh: parseFloat((circ / Math.PI).toFixed(1)),
+    carbon: calcCarbon(height, circ)
+  };
+
+  await dbSet('treeData', trees);
+
+  // Update marker
+  if (markers[id]) {
+    map.removeLayer(markers[id]);
+    delete markers[id];
+    addMarkerToMap(trees[idx]);
+  }
+
+  renderTable();
+  renderDashboard();
+  document.getElementById('view-tree-modal').style.display = 'none';
+  showToast('✅ แก้ไขข้อมูลเรียบร้อยแล้ว');
+}
+
+async function deleteTree(id) {
+  if (!confirm('ยืนยันลบต้นไม้นี้?')) return;
+  trees = trees.filter(t => t.id !== id);
+  await dbSet('treeData', trees);
+  removeTreeMarker(id);
+  updateTreeCount();
+  renderTable();
+  renderDashboard();
+  showToast('🗑️ ลบข้อมูลต้นไม้แล้ว');
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const total = trees.length;
+  const species = [...new Set(trees.map(t => t.name))].length;
+  const carbonTotal = trees.reduce((s, t) => s + (t.carbon || 0), 0);
+  const avgHeight = total ? (trees.reduce((s, t) => s + t.height, 0) / total).toFixed(1) : 0;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-species').textContent = species;
+  document.getElementById('stat-carbon').textContent = carbonTotal.toFixed(1);
+  document.getElementById('stat-avgheight').textContent = avgHeight;
+
+  // Bar chart - count by name
+  const nameCount = {};
+  trees.forEach(t => { nameCount[t.name] = (nameCount[t.name] || 0) + 1; });
+  const barLabels = Object.keys(nameCount);
+  const barData = Object.values(nameCount);
+
+  const greens = ['#4caf50','#66bb6a','#2e7d32','#81c784','#1b5e20','#a5d6a7','#388e3c','#c8e6c9'];
+
+  if (barChart) barChart.destroy();
+  const barCtx = document.getElementById('barChart').getContext('2d');
+  barChart = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barLabels.length ? barLabels : ['ยังไม่มีข้อมูล'],
+      datasets: [{
+        label: 'จำนวนต้น',
+        data: barData.length ? barData : [0],
+        backgroundColor: barLabels.map((_, i) => greens[i % greens.length] + 'cc'),
+        borderColor: barLabels.map((_, i) => greens[i % greens.length]),
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ` ${c.raw} ต้น` } }
+      },
+      scales: {
+        y: {
+          beginAtZero: true, ticks: { color: '#a5d6a7', stepSize: 1 },
+          grid: { color: 'rgba(76,175,80,0.1)' }
+        },
+        x: { ticks: { color: '#a5d6a7' }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Pie chart - carbon by name
+  const nameCarbonMap = {};
+  trees.forEach(t => { nameCarbonMap[t.name] = (nameCarbonMap[t.name] || 0) + (t.carbon || 0); });
+  const pieLabels = Object.keys(nameCarbonMap);
+  const pieData = Object.values(nameCarbonMap).map(v => parseFloat(v.toFixed(2)));
+
+  if (pieChart) pieChart.destroy();
+  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  pieChart = new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+      labels: pieLabels.length ? pieLabels : ['ยังไม่มีข้อมูล'],
+      datasets: [{
+        data: pieData.length ? pieData : [1],
+        backgroundColor: pieLabels.map((_, i) => greens[i % greens.length] + 'bb'),
+        borderColor: pieLabels.map((_, i) => greens[i % greens.length]),
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color: '#a5d6a7', font: { family: 'Sarabun', size: 12 }, padding: 12 }
+        },
+        tooltip: {
+          callbacks: { label: (c) => ` ${c.label}: ${c.raw} กก./ปี` }
+        }
+      }
+    }
+  });
+}
+
+// ===== ADMIN PANEL =====
+function openAdminPanel() {
+  renderAdminPanel();
+  document.getElementById('admin-modal-overlay').style.display = 'flex';
+}
+
+function renderAdminPanel() {
+  const pl = document.getElementById('pending-list');
+  const al = document.getElementById('approved-list');
+
+  if (pendingUsers.length === 0) {
+    pl.innerHTML = '<p style="font-size:13px; color:rgba(165,214,167,0.4); text-align:center; padding:20px;">ไม่มีคำขอสมัคร</p>';
+  } else {
+    pl.innerHTML = pendingUsers.map(u => `
+      <div class="pending-item">
+        <div>
+          <div class="pending-info">${u.name} (@${u.username})</div>
+          <div class="pending-email">${u.email}</div>
+        </div>
+        <div>
+          <button class="btn-approve" onclick="approveUser('${u.username}')">✅ อนุมัติ</button>
+          <button class="btn-reject" onclick="rejectUser('${u.username}')">❌ ปฏิเสธ</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const approvedNonAdmin = users.filter(u => u.username !== 'andrew888');
+  if (approvedNonAdmin.length === 0) {
+    al.innerHTML = '<p style="font-size:13px; color:rgba(165,214,167,0.4); text-align:center; padding:12px;">ยังไม่มีสมาชิก</p>';
+  } else {
+    al.innerHTML = approvedNonAdmin.map(u => `
+      <div class="pending-item">
+        <div>
+          <div class="pending-info">${u.name} (@${u.username})</div>
+          <div class="pending-email">${u.email} · ${u.role}</div>
+        </div>
+        <button class="btn-reject" onclick="removeUser('${u.username}')">🗑️ ลบ</button>
+      </div>
+    `).join('');
+  }
+}
+
+async function approveUser(username) {
+  const idx = pendingUsers.findIndex(u => u.username === username);
+  if (idx === -1) return;
+  const user = pendingUsers.splice(idx, 1)[0];
+  users.push({ ...user, role: 'user' });
+  await dbSet('treeUsers', users);
+  await dbSet('treePending', pendingUsers);
+  renderAdminPanel();
+  showToast('✅ อนุมัติสมาชิกแล้ว');
+}
+
+async function rejectUser(username) {
+  pendingUsers = pendingUsers.filter(u => u.username !== username);
+  await dbSet('treePending', pendingUsers);
+  renderAdminPanel();
+  showToast('❌ ปฏิเสธคำขอสมัครแล้ว');
+}
+
+async function removeUser(username) {
+  if (!confirm(`ลบผู้ใช้ ${username}?`)) return;
+  users = users.filter(u => u.username !== username);
+  await dbSet('treeUsers', users);
+  renderAdminPanel();
+  showToast('🗑️ ลบสมาชิกแล้ว');
+}
+
+// ===== TOAST =====
+function showToast(msg, success = true) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.borderColor = success ? 'rgba(76,175,80,0.35)' : 'rgba(244,67,54,0.35)';
+  toast.style.color = success ? 'var(--leaf)' : '#ef9a9a';
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Close modals on overlay click
+document.getElementById('add-tree-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+document.getElementById('admin-modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+document.getElementById('view-tree-modal').addEventListener('click', function(e) {
+  if (e.target === this) this.style.display = 'none';
+});
+
+// Init forest animation on load
+initForestAnimation();
+</script>
+</body>
+</html>
