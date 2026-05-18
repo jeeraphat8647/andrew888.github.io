@@ -1291,15 +1291,25 @@ let tempMarker = null;
 let tempLatLng = null;
 let barChart = null, pieChart = null;
 
-// ===== PERSISTENT STORAGE (Online - shared across all users/devices) =====
+// ===== FIREBASE CONFIG =====
+const FIREBASE_URL = 'https://sasuk888-default-rtdb.firebaseio.com';
+
 async function dbGet(key) {
   try {
-    const r = await window.storage.get(key, true);
-    return r ? JSON.parse(r.value) : null;
+    const res = await fetch(`${FIREBASE_URL}/${key}.json`);
+    if (!res.ok) return null;
+    return await res.json();
   } catch(e) { return null; }
 }
+
 async function dbSet(key, val) {
-  try { await window.storage.set(key, JSON.stringify(val), true); } catch(e) {}
+  try {
+    await fetch(`${FIREBASE_URL}/${key}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(val)
+    });
+  } catch(e) { console.error('dbSet error', e); }
 }
 
 async function loadAllData() {
@@ -1308,15 +1318,32 @@ async function loadAllData() {
     dbGet('treeUsers'),
     dbGet('treePending')
   ]);
-  trees = t || [];
-  users = u || [];
-  pendingUsers = p || [];
+  trees = t ? Object.values(t) : [];
+  users = u ? Object.values(u) : [];
+  pendingUsers = p ? Object.values(p) : [];
 
   // Ensure admin exists
-  if (!users.find(u => u.username === 'andrew888')) {
-    users.push({ username: 'andrew888', password: '1234', role: 'admin', name: 'Admin Andrew', email: 'admin@system.com' });
-    await dbSet('treeUsers', users);
+  if (!users.find(u => u.username === 'sasuk88')) {
+    users.push({ username: 'saduk88', password: '1234', role: 'admin', name: 'Admin Sasuk', email: 'admin@system.com' });
+    await saveUsers();
   }
+}
+
+// Firebase stores arrays as objects with numeric keys — convert back properly
+async function saveUsers() {
+  const obj = {};
+  users.forEach((u, i) => { obj[i] = u; });
+  await dbSet('treeUsers', obj);
+}
+async function savePending() {
+  const obj = {};
+  pendingUsers.forEach((u, i) => { obj[i] = u; });
+  await dbSet('treePending', obj);
+}
+async function saveTrees() {
+  const obj = {};
+  trees.forEach((t, i) => { obj[i] = t; });
+  await dbSet('treeData', obj);
 }
 
 // Boot: load data then show login
@@ -1434,7 +1461,7 @@ async function doLogin() {
   
   // Reload latest user list before login
   const latest = await dbGet('treeUsers');
-  if (latest) users = latest;
+  if (latest) users = Object.values(latest);
 
   const user = users.find(u => u.username === username && u.password === password);
   if (!user) return showAlert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
@@ -1453,14 +1480,14 @@ async function doRegister() {
 
   // Reload fresh data before checking
   const [latestUsers, latestPending] = await Promise.all([dbGet('treeUsers'), dbGet('treePending')]);
-  if (latestUsers) users = latestUsers;
-  if (latestPending) pendingUsers = latestPending;
+  if (latestUsers) users = Object.values(latestUsers);
+  if (latestPending) pendingUsers = Object.values(latestPending);
 
   if (users.find(u => u.username === username) || pendingUsers.find(u => u.username === username)) return showAlert('ชื่อผู้ใช้นี้มีอยู่แล้ว');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showAlert('รูปแบบอีเมลไม่ถูกต้อง');
 
   pendingUsers.push({ name, email, username, password, role: 'user', createdAt: new Date().toISOString() });
-  await dbSet('treePending', pendingUsers);
+  await savePending();
   showAlert('ส่งคำขอสมัครเรียบร้อยแล้ว กรุณารอผู้ดูแลระบบอนุมัติ', 'success');
   document.getElementById('reg-name').value = '';
   document.getElementById('reg-email').value = '';
@@ -1608,7 +1635,7 @@ async function saveTree() {
   };
 
   trees.push(tree);
-  await dbSet('treeData', trees);
+  await saveTrees();
   addMarkerToMap(tree);
   updateTreeCount();
   renderTable();
@@ -1763,7 +1790,7 @@ async function saveEditTree() {
     carbon: calcCarbon(height, circ)
   };
 
-  await dbSet('treeData', trees);
+  await saveTrees();
 
   // Update marker
   if (markers[id]) {
@@ -1781,7 +1808,7 @@ async function saveEditTree() {
 async function deleteTree(id) {
   if (!confirm('ยืนยันลบต้นไม้นี้?')) return;
   trees = trees.filter(t => t.id !== id);
-  await dbSet('treeData', trees);
+  await saveTrees();
   removeTreeMarker(id);
   updateTreeCount();
   renderTable();
@@ -1902,7 +1929,7 @@ function renderAdminPanel() {
     `).join('');
   }
 
-  const approvedNonAdmin = users.filter(u => u.username !== 'andrew888');
+  const approvedNonAdmin = users.filter(u => u.username !== 'sasuk88');
   if (approvedNonAdmin.length === 0) {
     al.innerHTML = '<p style="font-size:13px; color:rgba(165,214,167,0.4); text-align:center; padding:12px;">ยังไม่มีสมาชิก</p>';
   } else {
@@ -1923,15 +1950,15 @@ async function approveUser(username) {
   if (idx === -1) return;
   const user = pendingUsers.splice(idx, 1)[0];
   users.push({ ...user, role: 'user' });
-  await dbSet('treeUsers', users);
-  await dbSet('treePending', pendingUsers);
+  await saveUsers();
+  await savePending();
   renderAdminPanel();
   showToast('✅ อนุมัติสมาชิกแล้ว');
 }
 
 async function rejectUser(username) {
   pendingUsers = pendingUsers.filter(u => u.username !== username);
-  await dbSet('treePending', pendingUsers);
+  await savePending();
   renderAdminPanel();
   showToast('❌ ปฏิเสธคำขอสมัครแล้ว');
 }
@@ -1939,7 +1966,7 @@ async function rejectUser(username) {
 async function removeUser(username) {
   if (!confirm(`ลบผู้ใช้ ${username}?`)) return;
   users = users.filter(u => u.username !== username);
-  await dbSet('treeUsers', users);
+  await saveUsers();
   renderAdminPanel();
   showToast('🗑️ ลบสมาชิกแล้ว');
 }
